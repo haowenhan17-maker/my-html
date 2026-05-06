@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>标注平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        .logo {
+            padding: 24px 20px;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .logo span {
+            color: #4facfe;
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 14px 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-item:hover {
+            background: rgba(255,255,255,0.1);
+            border-left-color: #4facfe;
+        }
+
+        .nav-item.active {
+            background: rgba(79, 172, 254, 0.15);
+            border-left-color: #4facfe;
+            color: #4facfe;
+        }
+
+        .nav-icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .main-content {
+            flex: 1;
+            background: #f5f7fa;
+            overflow: hidden;
+        }
+
+        .content-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        .placeholder-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .placeholder-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .placeholder-text {
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="sidebar">
+            <div class="logo">标注<span>平台</span></div>
+            <div class="nav-menu">
+                <div class="nav-item active" data-page="text_annotation.html">
+                    <span class="nav-icon">📝</span>
+                    <span>文本标注工作台</span>
+                </div>
+                <div class="nav-item" data-page="audio_annotation.html">
+                    <span class="nav-icon">🎧</span>
+                    <span>音频标注工作台</span>
+                </div>
+                <div class="nav-item" data-page="video_annotation.html">
+                    <span class="nav-icon">🎬</span>
+                    <span>视频标注工作台</span>
+                </div>
+                <div class="nav-item" data-page="review_workspace.html">
+                    <span class="nav-icon">✅</span>
+                    <span>审核工作台</span>
+                </div>
+                <div class="nav-item" data-page="data_management.html">
+                    <span class="nav-icon">⚙️</span>
+                    <span>后台数据管理</span>
+                </div>
+                <div class="nav-item" data-page="progress_dashboard.html">
+                    <span class="nav-icon">📊</span>
+                    <span>标注进度看板</span>
+                </div>
+            </div>
+        </nav>
+        <main class="main-content">
+            <iframe id="contentFrame" class="content-frame" src="text_annotation.html"></iframe>
+        </main>
+    </div>
+
+    <script>
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                this.classList.add('active');
+
+                const page = this.getAttribute('data-page');
+                document.getElementById('contentFrame').src = page;
+            });
+        });
+
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'navigate') {
+                const navItems = document.querySelectorAll('.nav-item');
+                navItems.forEach(item => {
+                    item.classList.remove('active');
+                    if (item.getAttribute('data-page') === e.data.page) {
+                        item.classList.add('active');
+                    }
+                });
+                document.getElementById('contentFrame').src = e.data.page;
+            }
+        });
+    </script>
+</body>
+</html>
