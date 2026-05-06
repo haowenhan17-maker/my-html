@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本标注工作台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f5f7fa;
+        }
+
+        .toolbar {
+            background: #fff;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            z-index: 10;
+        }
+
+        .task-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .task-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .task-status {
+            padding: 4px 12px;
+            background: #e3f2fd;
+            color: #1976d2;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-draft {
+            background: #fff;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .btn-draft:hover {
+            background: #f5f5f5;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #fff;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            padding: 16px;
+            gap: 16px;
+        }
+
+        .text-area {
+            flex: 1;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .area-header {
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .text-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            line-height: 2;
+            font-size: 15px;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .text-content::selection {
+            background: rgba(79, 172, 254, 0.3);
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #ffeaa7 0%, #fdcb6e 100%);
+            padding: 2px 0;
+            border-radius: 3px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .highlight:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .annotation-list {
+            width: 380px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .list-header {
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .annotation-count {
+            background: #4facfe;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .list-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .annotation-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4facfe;
+            transition: all 0.3s;
+        }
+
+        .annotation-item:hover {
+            background: #e8f4fd;
+        }
+
+        .annotation-text {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .annotation-text span {
+            color: #4facfe;
+            font-weight: 600;
+        }
+
+        .annotation-result {
+            font-size: 13px;
+            color: #666;
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .annotation-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn-small {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .btn-edit {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .btn-edit:hover {
+            background: #bbdefb;
+        }
+
+        .btn-delete {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .btn-delete:hover {
+            background: #ffcdd2;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .popup-overlay.active {
+            display: flex;
+        }
+
+        .popup {
+            background: #fff;
+            border-radius: 12px;
+            width: 420px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .popup-header {
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .popup-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .form-input:read-only {
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-list {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .dropdown-list.active {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: #e3f2fd;
+        }
+
+        .dropdown-item.no-match {
+            color: #999;
+            cursor: default;
+        }
+
+        .popup-footer {
+            padding: 16px 20px;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn-cancel {
+            background: #fff;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .btn-cancel:hover {
+            background: #f5f5f5;
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #fff;
+        }
+
+        .btn-confirm:hover {
+            opacity: 0.9;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 14px 24px;
+            background: #333;
+            color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 2000;
+            transform: translateX(120%);
+            transition: transform 0.3s;
+        }
+
+        .toast.active {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: #4caf50;
+        }
+
+        .toast.error {
+            background: #f44336;
+        }
+
+        .toast.warning {
+            background: #ff9800;
+        }
+
+        .orphan-warning {
+            background: #fff3e0;
+            border: 1px solid #ffb74d;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .orphan-warning-title {
+            color: #e65100;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .orphan-list {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .orphan-item {
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .orphan-item span {
+            background: #ffe0b2;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="task-info">
+            <span class="task-name">汽车品牌车系标注任务 - 2024年论坛帖子数据集</span>
+            <span class="task-status">标注中</span>
+        </div>
+        <div class="toolbar-actions">
+            <button class="btn btn-draft" onclick="saveDraft()">📋 暂存</button>
+            <button class="btn btn-submit" onclick="submitAnnotations()">✅ 提交</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="text-area">
+            <div class="area-header">📖 原文阅读区</div>
+            <div id="textContent" class="text-content"></div>
+        </div>
+
+        <div class="annotation-list">
+            <div class="list-header">
+                <span>📋 标注结果列表</span>
+                <span id="annotationCount" class="annotation-count">0</span>
+            </div>
+            <div id="listContent" class="list-content">
+                <div class="empty-state">
+                    <div class="empty-icon">📝</div>
+                    <div>暂无标注</div>
+                    <div style="font-size:12px;margin-top:8px;">在左侧文本中圈选词语开始标注</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="popupOverlay" class="popup-overlay">
+        <div class="popup">
+            <div class="popup-header" id="popupTitle">创建标注</div>
+            <div class="popup-body">
+                <div class="form-group">
+                    <label class="form-label">圈选内容</label>
+                    <input type="text" id="selectedText" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">品牌</label>
+                    <div class="dropdown">
+                        <input type="text" id="brandInput" class="form-input" placeholder="输入品牌名称搜索..." autocomplete="off">
+                        <div id="brandDropdown" class="dropdown-list"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">车系</label>
+                    <div class="dropdown">
+                        <input type="text" id="seriesInput" class="form-input" placeholder="请先选择品牌" autocomplete="off" disabled>
+                        <div id="seriesDropdown" class="dropdown-list"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="popup-footer">
+                <button class="btn btn-cancel" onclick="closePopup()">取消</button>
+                <button class="btn btn-confirm" onclick="confirmAnnotation()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const carDatabase = {
+            "大众": ["速腾", "朗逸", "帕萨特", "迈腾", "途观L", "途岳", "Polo", "高尔夫", "宝来", "桑塔纳", "凌渡", "途昂", "探岳", "揽境", "威然", "辉昂", "途安L", "嘉年华", "高尔夫·纯电"],
+            "宝马": ["3系", "5系", "7系", "X1", "X3", "X5", "X7", "Z4", "M3", "M4", "M5", "1系", "2系", "4系", "8系", "i3", "i8", "X2", "X4", "X6"],
+            "奔驰": ["C级", "E级", "S级", "GLC", "GLE", "GLS", "A级", "B级", "GLA", "GLB", "G-Class", "CLA", " CLS", "AMG GT", "EQA", "EQB", "EQC", "EQS"],
+            "奥迪": ["A3", "A4L", "A6L", "A8L", "Q3", "Q5L", "Q7", "Q8", "R8", "TT", "RS3", "RS4", "RS5", "RS6", "RS7", "e-tron", "A4", "A5", "A7"],
+            "丰田": ["卡罗拉", "凯美瑞", "RAV4荣放", "汉兰达", "普拉多", "兰德酷路泽", "亚洲龙", "雷凌", "威兰达", "奕泽", "皇冠", "致炫", "飞度", "锋兰达", "凌放", "赛那", "埃尔法", "威尔法"],
+            "本田": ["雅阁", "思域", "CR-V", "皓影", "缤智", "XR-V", "冠道", "UR-V", "飞度", "凌派", "享域", "英仕派", "奥德赛", "艾力绅", "e:NP1", "e:HS"],
+            "日产": ["轩逸", "天籁", "逍客", "奇骏", "楼兰", "途达", "纳瓦拉", "骐达", "蓝鸟", "劲客", "途乐", "贵士", "GT-R", "Leaf"],
+            "比亚迪": ["秦", "唐", "宋", "元", "汉", "海豹", "海豚", "驱逐舰", "护卫舰", "海狮", "海鸥", "唐EV", "宋MAX", "秦PLUS", "汉EV", "海豹EV"],
+            "特斯拉": ["Model 3", "Model Y", "Model S", "Model X", "Cybertruck", "Semi"],
+            "吉利": ["博越", "帝豪", "星越", "星瑞", "ICON", "缤越", "豪越", "嘉际", "领克01", "领克02", "领克03", "领克05", "领克06", "极氪001", "极氪009", "几何A", "几何C"],
+            "长安": ["CS75", "CS55", "CS35", "UN-V", "UN-K", "逸动", "锐程CC", "阿维塔11", "阿维塔12", "糯玉米", "深蓝SL03", "深蓝S7"],
+            "长城": ["哈佛H6", "哈佛大狗", "哈佛初恋", "哈佛M6", "坦克300", "坦克500", "炮", "山海炮", "欧拉好猫", "欧拉芭蕾猫", "欧拉闪电猫", "魏牌蓝山", "魏牌摩卡"],
+            "奇瑞": ["瑞虎8", "瑞虎7", "艾瑞泽5", "艾瑞泽GX", "星途TX", "星途LX", "星途揽月", "捷途X70", "捷途X90", "QQ冰淇淋", "小蚂蚁"],
+            "红旗": ["H5", "H7", "H9", "HS5", "HS7", "E-HS3", "E-HS9", "HQ9", "S9"],
+            "蔚来": ["ES6", "ES7", "ES8", "EC6", "EC7", "ET5", "ET7", "EP9"],
+            "小鹏": ["P7", "P5", "G3", "G6", "G9", "X9", "P7i"],
+            "理想": ["理想L7", "理想L8", "理想L9", "理想ONE", "理想MEGA"],
+            "保时捷": ["911", "Cayenne", "Panamera", "Macan", "Taycan", "718", "Cayman", "Boxster"],
+            "路虎": ["揽胜", "揽胜运动版", "发现", "卫士", "揽胜极光", "发现运动版", "神行者"],
+            "凯迪拉克": ["CT4", "CT5", "CT6", "XT4", "XT5", "XT6", "LYRIQ", "凯雷德"],
+            "沃尔沃": ["S60", "S90", "XC40", "XC60", "XC90", "V60", "V90", "C40"],
+            "福特": ["福克斯", "蒙迪欧", "锐界", "探险者", "锐际", "领界", "撼路者", "Mustang", "电马", "领睿"],
+            "雪佛兰": ["科鲁泽", "迈锐宝XL", "探界者", "开拓者", "创酷", "创界", "沃兰多", "畅巡", "巡领者"],
+            "别克": ["英朗", "威朗", "君威", "君越", "昂科威", "昂科旗", "GL8", "GL6", "微蓝6", "微蓝7", "世纪"],
+            "现代": ["伊兰特", "索纳塔", "名图", "途胜L", "胜达", "ix35", "悦动", "菲斯塔", "库斯途", "IONIQ 5", "IONIQ 6"],
+            "起亚": ["K3", "K5", "K8", "KX3傲跑", "KX5", "KX7", "智跑", "嘉华", "EV6", "EV9"],
+            "马自达": ["昂克赛拉", "阿特兹", "CX-4", "CX-5", "CX-30", "CX-8", "CX-50", "MX-5"],
+            "斯巴鲁": ["森林人", "傲虎", "XV", "力狮", "BRZ", "WRX", "Solterra"],
+            "Jeep": ["指南者", "自由光", "自由侠", "自由客", "牧马人", "大切诺基", "角斗士", "大瓦格尼"],
+            "捷豹": ["XEL", "XFL", "F-PACE", "E-PACE", "I-PACE", "F-TYPE", "XJ"],
+            "MG": ["MG5", "MG6", "MG7", "MG ONE", "MG领航", "MG HS", "MG ZS", "MG Marvel R", "Cyberster"],
+            "雪铁龙": ["C3L", "C5L", "天逸C5", "云逸C3", "C3-XR", "凡尔赛C5 X", "雪铁龙C6"],
+            "标致": ["408", "508L", "4008", "5008", "2008", "e2008", "408X", "508L新能源"],
+            "雷诺": ["科雷傲", "科雷嘉", "Captur", "Megane", "ZOE", "江铃雷诺"],
+            "欧宝": ["Corsa", "Astra", "Insignia", "Mokka", "Combo", "Zafira"],
+            "MINI": ["MINI Cooper", "MINI Clubman", "MINI Countryman", "MINI Paceman", "MINI Cabrio", "MINI Electric"],
+            "smart": ["smart fortwo", "smart forfour", "精灵#1", "精灵#3"],
+            "腾势": ["腾势D9", "腾势N7", "腾势N8"],
+            "岚图": ["岚图FREE", "梦想家", "追光", "岚图F"],
+            "极氪": ["极氪001", "极氪007", "极氪009", "极氪X", "极氪001 FR"],
+            "阿维塔": ["阿维塔11", "阿维塔12"],
+            "高合": ["HiPhi X", "HiPhi Z", "HiPhi Y"],
+            "智己": ["智己L7", "智己LS7", "智己LS6", "智己L6"],
+            "飞凡": ["飞凡R7", "飞凡F7", "飞凡MARVEL R"],
+            "深蓝": ["深蓝SL03", "深蓝S7", "深蓝G318"],
+            "银河": ["银河L7", "银河L6", "银河E8"],
+            "领克": ["领克01", "领克02", "领克03", "领克05", "领克06", "领克08", "领克09"],
+            "魏牌": ["摩卡", "拿铁", "玛奇朵", "蓝山", "高山"],
+            "星途": ["星途TX", "星途LX", "星途TXL", "星途揽月", "星途追风", "星途瑶光"],
+            "捷途": ["捷途X70", "捷途X90", "捷途X95", "捷途大圣", "捷途旅行者"],
+            "坦克": ["坦克300", "坦克500", "坦克700", "坦克800"],
+            "北京": ["BJ40", "BJ60", "BJ80", "BJ90", "北京U5", "北京X3", "北京X5", "北京X7"],
+            "东风": ["风神AX7", "风光580", "风行T5", "启辰D60", "启辰星", "岚图FREE", "猛士917"],
+            "五菱": ["宏光MINI EV", "五菱凯捷", "五菱星辰", "五菱佳辰", "五菱星光", "五菱缤果"],
+            "宝骏": ["宝骏510", "宝骏530", "宝骏730", "宝骏KiWi EV", "宝骏悦也"],
+            "荣威": ["荣威RX5", "荣威RX8", "荣威i5", "荣威i6", "荣威Marvel X", "荣威D7"],
+            "名爵": ["MG5", "MG6", "MG7", "MG ZS", "MG HS", "MG领航", "MG Marvel R", "MG Cyberster"],
+            "奔腾": ["奔腾T77", "奔腾T99", "奔腾B70", "奔腾NAT", "奔腾M9"],
+            "海马": ["海马S5", "海马S7", "海马8S", "海马7X"],
+            "东南": ["东南DX3", "东南DX5", "东南DX7", "东南A5翼舞"],
+            "华晨": ["中华V3", "中华V6", "中华V7", "金杯海狮", "金杯阁瑞斯"],
+            "猎豹": ["猎豹CS9", "猎豹CS10", "猎豹Mattu", "猎豹Q6"],
+            "江淮": ["瑞风S3", "瑞风S4", "瑞风S7", "瑞风M3", "瑞风M4", "思皓X8", "思皓A5"],
+            "驭胜": ["驭胜S350", "驭胜S550"],
+            "福田": ["福田萨普", "福田征服者", "福田蒙派克", "福田图雅诺"],
+            "重汽": ["豪沃", "豪瀚", "汕德卡", "豪狮"],
+            "解放": ["解放J6", "解放J7", "解放JH6", "解放V卡"],
+            "陕汽": ["陕汽德龙", "陕汽轩德", "陕汽重卡"],
+            "北汽": ["北京汽车", "北汽威旺", "北汽幻速", "北汽昌河", "北汽制造"],
+            "力帆": ["力帆620", "力帆820", "力帆X50", "力帆X80", "力帆迈威"],
+            "众泰": ["众泰T300", "众泰T500", "众泰T600", "众泰SR9", "众泰E200"],
+            "幻速": ["幻速S3", "幻速S5", "幻速S7", "幻速H2"],
+            "比速": ["比速T3", "比速T5", "比速M3"],
+            "斯威": ["斯威G01", "斯威X3", "斯威X7", "斯威X2"],
+            "汉腾": ["汉腾X5", "汉腾X7", "汉腾V7"],
+            "野马": ["野马T70", "野马T80", "野马博骏", "野马EC60"],
+            "大乘": ["大乘G60", "大乘G70", "大乘G80"],
+            "金康": ["金康SERES SF5", "金康SERES SF7"],
+            "SERES": ["SERES SF5", "SERES SF7", "华为智选SF5"],
+            "ARCFOX": ["ARCFOX αT", "ARCFOX αS", "ARCFOX GT"],
+            "极狐": ["极狐αT", "极狐αS", "极狐ARCFOX GT"],
+            "爱驰": ["爱驰U5", "爱驰U6"],
+            "天际": ["天际ME5", "天际ME7"],
+            "前途": ["前途K50", "前途K20"],
+            "敏安": ["敏安MA", "敏安MH"],
+            "华人运通": ["高合HiPhi X", "高合HiPhi Z", "高合HiPhi Y"],
+            "零跑": ["零跑T03", "零跑S01", "零跑C11", "零跑C01", "零跑C10"],
+            "天美": ["天美ET5"],
+            "创维": ["创维EV6", "创维HT-i"],
+            "恒大": ["恒驰1", "恒驰2", "恒驰3", "恒驰4", "恒驰5", "恒驰6", "恒驰7", "恒驰8", "恒驰9"],
+            "集度": ["集度ROBO-01", "集度ROBO-02"],
+            "小米": ["小米SU7", "小米SU8"],
+            "富士康": ["Foxtron Model B", "Foxtron Model C", "Foxtron Model E", "Foxtron Model T"],
+            "苹果": ["Apple Car"],
+            "索尼": ["Sony Vision-S"],
+            "百度": ["百度Apollo"],
+            "华为": ["问界M5", "问界M7", "问界M9", "智界S7", "享界S9"],
+            "阿里巴巴": ["智己L7", "智己LS7"],
+            "腾讯": ["腾讯车联"],
+            "京东": ["京东物流车"],
+            "字节跳动": ["字节自动驾驶"]
+        };
+
+        const sampleText = `今天陪朋友去4S店看车，他一直想买辆大众的车，主要是觉得大众的口碑不错。我们先去了大众的4S店，看了最新款的帕萨特，外观确实很大气，内饰也很有质感。销售顾问推荐了朗逸，说这款车销量一直很好，性价比很高。
+
+后来我们又去了宝马的4S店看了看，宝马的展厅确实比大众的更豪华一些。朋友对宝马3系很感兴趣，觉得操控性很好。不过宝马的价格确实比大众贵不少，入门级的3系也要三十万左右。
+
+我们还路过了一个新能源汽车的店，里面有特斯拉的Model Y和Model 3，还有比亚迪的汉和海豹。朋友说比亚迪的性价比确实很高，特别是海豹这款车，续航里程很给力。
+
+最后我们又去了蔚来的店，ES6的设计真的很漂亮，续航也很不错。不过蔚来的价格也不便宜，朋友说再考虑考虑。回家的路上看到一辆保时捷的911，颜色特别好看，朋友说那是他的梦想之车。`;
+
+        let annotations = [];
+        let currentEditIndex = -1;
+        let selectedBrand = '';
+        let selectedSeries = '';
+
+        function init() {
+            document.getElementById('textContent').innerHTML = sampleText;
+            loadFromStorage();
+
+            document.getElementById('textContent').addEventListener('mouseup', handleTextSelection);
+            document.getElementById('brandInput').addEventListener('input', handleBrandInput);
+            document.getElementById('brandInput').addEventListener('focus', showBrandDropdown);
+            document.getElementById('seriesInput').addEventListener('input', handleSeriesInput);
+            document.getElementById('seriesInput').addEventListener('focus', showSeriesDropdown);
+
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.dropdown')) {
+                    document.getElementById('brandDropdown').classList.remove('active');
+                    document.getElementById('seriesDropdown').classList.remove('active');
+                }
+            });
+        }
+
+        function handleTextSelection(e) {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+
+            if (selectedText.length > 0 && !e.target.closest('.highlight')) {
+                setTimeout(() => {
+                    if (window.getSelection().toString().trim() === selectedText) {
+                        openPopup(selectedText);
+                    }
+                }, 10);
+            }
+        }
+
+        function openPopup(text, editIndex = -1) {
+            currentEditIndex = editIndex;
+            document.getElementById('selectedText').value = text;
+            document.getElementById('brandInput').value = '';
+            document.getElementById('seriesInput').value = '';
+            document.getElementById('seriesInput').placeholder = '请先选择品牌';
+            document.getElementById('seriesInput').disabled = true;
+            selectedBrand = '';
+            selectedSeries = '';
+
+            if (editIndex >= 0) {
+                document.getElementById('popupTitle').textContent = '编辑标注';
+                const annotation = annotations[editIndex];
+                document.getElementById('brandInput').value = annotation.brand;
+                selectedBrand = annotation.brand;
+                filterBrands('');
+                document.getElementById('seriesInput').disabled = false;
+                document.getElementById('seriesInput').placeholder = '输入车系名称搜索...';
+                document.getElementById('seriesInput').value = annotation.series;
+                selectedSeries = annotation.series;
+                filterSeries('');
+            } else {
+                document.getElementById('popupTitle').textContent = '创建标注';
+            }
+
+            document.getElementById('popupOverlay').classList.add('active');
+            document.getElementById('brandInput').focus();
+        }
+
+        function closePopup() {
+            document.getElementById('popupOverlay').classList.remove('active');
+            currentEditIndex = -1;
+        }
+
+        function handleBrandInput(e) {
+            const value = e.target.value;
+            selectedBrand = '';
+            selectedSeries = '';
+            document.getElementById('seriesInput').value = '';
+            document.getElementById('seriesInput').disabled = true;
+            document.getElementById('seriesInput').placeholder = '请先选择品牌';
+            filterBrands(value);
+        }
+
+        function handleSeriesInput(e) {
+            const value = e.target.value;
+            selectedSeries = '';
+            filterSeries(value);
+        }
+
+        function filterBrands(query) {
+            const dropdown = document.getElementById('brandDropdown');
+            const brands = Object.keys(carDatabase);
+            const filtered = brands.filter(brand => brand.includes(query));
+
+            if (filtered.length === 0 && query.length > 0) {
+                dropdown.innerHTML = '<div class="dropdown-item no-match">没有找到匹配的品牌</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(brand =>
+                    `<div class="dropdown-item" onclick="selectBrand('${brand}')">${brand}</div>`
+                ).join('');
+            }
+            dropdown.classList.add('active');
+        }
+
+        function filterSeries(query) {
+            const dropdown = document.getElementById('seriesDropdown');
+            const seriesList = carDatabase[selectedBrand] || [];
+            const filtered = seriesList.filter(series => series.includes(query));
+
+            if (filtered.length === 0 && query.length > 0) {
+                dropdown.innerHTML = '<div class="dropdown-item no-match">没有找到匹配的车系</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(series =>
+                    `<div class="dropdown-item" onclick="selectSeries('${series}')">${series}</div>`
+                ).join('');
+            }
+            dropdown.classList.add('active');
+        }
+
+        function showBrandDropdown() {
+            if (document.getElementById('brandInput').value === '') {
+                filterBrands('');
+            }
+        }
+
+        function showSeriesDropdown() {
+            if (selectedBrand && document.getElementById('seriesInput').value === '') {
+                filterSeries('');
+            }
+        }
+
+        function selectBrand(brand) {
+            selectedBrand = brand;
+            selectedSeries = '';
+            document.getElementById('brandInput').value = brand;
+            document.getElementById('brandDropdown').classList.remove('active');
+            document.getElementById('seriesInput').disabled = false;
+            document.getElementById('seriesInput').placeholder = '输入车系名称搜索...';
+            document.getElementById('seriesInput').value = '';
+            document.getElementById('seriesInput').focus();
+        }
+
+        function selectSeries(series) {
+            selectedSeries = series;
+            document.getElementById('seriesInput').value = series;
+            document.getElementById('seriesDropdown').classList.remove('active');
+        }
+
+        function confirmAnnotation() {
+            const text = document.getElementById('selectedText').value;
+            const brand = selectedBrand;
+            const series = selectedSeries || '无';
+
+            if (!brand) {
+                showToast('请选择品牌', 'error');
+                return;
+            }
+
+            if (currentEditIndex >= 0) {
+                annotations[currentEditIndex] = { text, brand, series };
+                showToast('标注已更新', 'success');
+            } else {
+                annotations.push({ text, brand, series });
+                showToast('标注成功', 'success');
+            }
+
+            closePopup();
+            renderAnnotations();
+            renderHighlights();
+            saveToStorage();
+        }
+
+        function renderAnnotations() {
+            const listContent = document.getElementById('listContent');
+            const count = document.getElementById('annotationCount');
+            count.textContent = annotations.length;
+
+            if (annotations.length === 0) {
+                listContent.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📝</div>
+                        <div>暂无标注</div>
+                        <div style="font-size:12px;margin-top:8px;">在左侧文本中圈选词语开始标注</div>
+                    </div>
+                `;
+                return;
+            }
+
+            listContent.innerHTML = annotations.map((ann, index) => `
+                <div class="annotation-item">
+                    <div class="annotation-text"><span>${ann.text}</span></div>
+                    <div class="annotation-result">品牌:${ann.brand};车系:${ann.series}</div>
+                    <div class="annotation-actions">
+                        <button class="btn-small btn-edit" onclick="editAnnotation(${index})">编辑</button>
+                        <button class="btn-small btn-delete" onclick="deleteAnnotation(${index})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderHighlights() {
+            let text = sampleText;
+            const sortedAnnotations = [...annotations].sort((a, b) => b.text.length - a.text.length);
+
+            for (const ann of sortedAnnotations) {
+                const regex = new RegExp(escapeRegex(ann.text), 'g');
+                text = text.replace(regex, `<span class="highlight" data-tooltip="品牌:${ann.brand};车系:${ann.series}">${ann.text}</span>`);
+            }
+
+            document.getElementById('textContent').innerHTML = text;
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function editAnnotation(index) {
+            const annotation = annotations[index];
+            openPopup(annotation.text, index);
+        }
+
+        function deleteAnnotation(index) {
+            annotations.splice(index, 1);
+            renderAnnotations();
+            renderHighlights();
+            saveToStorage();
+            showToast('标注已删除', 'success');
+        }
+
+        function saveDraft() {
+            saveToStorage();
+            showToast('草稿已保存', 'success');
+        }
+
+        function submitAnnotations() {
+            const orphans = findOrphanHighlights();
+
+            if (orphans.length > 0) {
+                showOrphanWarning(orphans);
+                return;
+            }
+
+            if (annotations.length === 0) {
+                showToast('请至少添加一条标注', 'warning');
+                return;
+            }
+
+            const confirmed = confirm(`确定要提交 ${annotations.length} 条标注吗？提交后将进入一审队列。`);
+            if (confirmed) {
+                localStorage.setItem('textAnnotationSubmitted', 'true');
+                localStorage.removeItem('textAnnotations');
+                annotations = [];
+                renderAnnotations();
+                renderHighlights();
+                document.querySelector('.task-status').textContent = '标注完成';
+                showToast('提交成功！已进入一审队列。', 'success');
+            }
+        }
+
+        function findOrphanHighlights() {
+            const highlights = document.querySelectorAll('.highlight');
+            const orphanTexts = [];
+
+            highlights.forEach(h => {
+                const text = h.textContent;
+                const found = annotations.find(ann => ann.text === text);
+                if (!found) {
+                    orphanTexts.push(text);
+                }
+            });
+
+            return orphanTexts;
+        }
+
+        function showOrphanWarning(orphans) {
+            const orphanHtml = orphans.map(text =>
+                `<div class="orphan-item"><span>${text}</span></div>`
+            ).join('');
+
+            const warningHtml = `
+                <div class="orphan-warning">
+                    <div class="orphan-warning-title">⚠️ 检测到未完成的标注</div>
+                    <div class="orphan-list">${orphanHtml}</div>
+                    <div style="margin-top:12px;font-size:12px;color:#666;">
+                        请完成这些标注或删除对应的高亮标记
+                    </div>
+                </div>
+            `;
+
+            const listContent = document.getElementById('listContent');
+            listContent.insertAdjacentHTML('afterbegin', warningHtml);
+
+            setTimeout(() => {
+                const warning = listContent.querySelector('.orphan-warning');
+                if (warning) {
+                    warning.remove();
+                }
+            }, 5000);
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast active ${type}`;
+
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('textAnnotations', JSON.stringify(annotations));
+        }
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem('textAnnotations');
+            const submitted = localStorage.getItem('textAnnotationSubmitted');
+
+            if (submitted) {
+                document.querySelector('.task-status').textContent = '标注完成';
+            }
+
+            if (saved) {
+                annotations = JSON.parse(saved);
+                renderAnnotations();
+                renderHighlights();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

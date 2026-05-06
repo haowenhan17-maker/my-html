@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频标注工作台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f5f7fa;
+        }
+
+        .toolbar {
+            background: #fff;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            z-index: 10;
+        }
+
+        .task-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .task-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .task-status {
+            padding: 4px 12px;
+            background: #fff3e0;
+            color: #f57c00;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-undo {
+            background: #fff;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .btn-undo:hover:not(:disabled) {
+            background: #f5f5f5;
+        }
+
+        .btn-undo:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-draft {
+            background: #fff;
+            color: #666;
+            border: 1px solid #ddd;
+        }
+
+        .btn-draft:hover {
+            background: #f5f5f5;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #fff;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 16px;
+            overflow: hidden;
+        }
+
+        .audio-player-section {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 20px;
+        }
+
+        .player-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .audio-info {
+            font-size: 12px;
+            color: #999;
+            margin-left: auto;
+        }
+
+        .waveform-container {
+            height: 80px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .waveform-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .waveform-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(79, 172, 254, 0.2);
+            pointer-events: none;
+        }
+
+        .waveform-cursor {
+            position: absolute;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: #4facfe;
+            pointer-events: none;
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            background: #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .control-btn.play-btn {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #fff;
+        }
+
+        .control-btn.play-btn:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        .time-display {
+            font-size: 14px;
+            color: #666;
+            font-family: "Consolas", monospace;
+            min-width: 100px;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .speed-label {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .speed-select {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .speed-select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .content-section {
+            flex: 1;
+            display: flex;
+            gap: 16px;
+            overflow: hidden;
+        }
+
+        .text-panel {
+            flex: 1;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .edit-count {
+            background: #ff9800;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: auto;
+        }
+
+        .text-content {
+            flex: 1;
+            padding: 16px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .instruction-box {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #1565c0;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .instruction-icon {
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .editor-container {
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 2;
+            background: #fff;
+        }
+
+        .editor-container:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .modified-mark {
+            background: #fff3cd;
+            border-radius: 3px;
+            padding: 1px 4px;
+            cursor: pointer;
+            position: relative;
+            border-bottom: 2px solid #ffc107;
+        }
+
+        .modified-mark:hover {
+            background: #ffe082;
+        }
+
+        .tooltip-popup {
+            display: none;
+            position: fixed;
+            background: #333;
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .tooltip-popup::before {
+            content: '原文: ';
+            color: #ff6b6b;
+        }
+
+        .tooltip-popup.active {
+            display: block;
+        }
+
+        .diff-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: #666;
+            margin-top: 12px;
+        }
+
+        .diff-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .diff-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+
+        .diff-modified {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 14px 24px;
+            background: #333;
+            color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 2000;
+            transform: translateX(120%);
+            transition: transform 0.3s;
+        }
+
+        .toast.active {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: #4caf50;
+        }
+
+        .toast.error {
+            background: #f44336;
+        }
+
+        .toast.warning {
+            background: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="task-info">
+            <span class="task-name">ASR音频转写修正任务 - 汽车评测音频数据集V2</span>
+            <span id="taskStatus" class="task-status">待修正</span>
+        </div>
+        <div class="toolbar-actions">
+            <button id="undoBtn" class="btn btn-undo" onclick="undo()" disabled>↩️ 撤回</button>
+            <button class="btn btn-draft" onclick="saveDraft()">📋 暂存</button>
+            <button class="btn btn-submit" onclick="submitChanges()">✅ 提交修改</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="audio-player-section">
+            <div class="player-header">
+                <span>🎧</span>
+                <span>音频播放器</span>
+                <span class="audio-info">audio_001.mp3 | 00:32 | 128kbps</span>
+            </div>
+            <div class="waveform-container" id="waveformContainer">
+                <canvas id="waveformCanvas" class="waveform-canvas"></canvas>
+                <div id="waveformProgress" class="waveform-progress"></div>
+                <div id="waveformCursor" class="waveform-cursor"></div>
+            </div>
+            <div class="player-controls">
+                <button class="control-btn" onclick="skipBackward()" title="快退5秒">⏪</button>
+                <button id="playBtn" class="control-btn play-btn" onclick="togglePlay()">▶️</button>
+                <button class="control-btn" onclick="skipForward()" title="快进5秒">⏩</button>
+                <span id="timeDisplay" class="time-display">00:00 / 00:32</span>
+                <div class="speed-control">
+                    <span class="speed-label">倍速</span>
+                    <select id="speedSelect" class="speed-select" onchange="changeSpeed()">
+                        <option value="0.5">0.5x</option>
+                        <option value="0.75">0.75x</option>
+                        <option value="1" selected>1.0x</option>
+                        <option value="1.25">1.25x</option>
+                        <option value="1.5">1.5x</option>
+                        <option value="2">2.0x</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <div class="text-panel">
+                <div class="panel-header">
+                    <span>📝</span>
+                    <span>ASR识别结果</span>
+                    <span id="editCountBadge" class="edit-count" style="display:none;">0处修改</span>
+                </div>
+                <div class="text-content">
+                    <div class="instruction-box">
+                        <span class="instruction-icon">💡</span>
+                        <div>
+                            <strong>标注说明：</strong>请播放音频，对照上方ASR文本进行修正。重点关注汽车品牌、车系相关的简称/俗称。
+                            修改后的文字会用<span style="background:#fff3cd;padding:1px 4px;border-radius:3px;">黄色底色</span>标记，点击可查看原文。
+                        </div>
+                    </div>
+                    <div class="editor-wrapper">
+                        <div id="editor" class="editor-container" contenteditable="true" spellcheck="false"></div>
+                    </div>
+                    <div class="diff-legend">
+                        <div class="diff-item">
+                            <span class="diff-color diff-modified"></span>
+                            <span>修改内容（点击查看原文）</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tooltip" class="tooltip-popup"></div>
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const originalText = '今天陪朋友去四s店看车，他一直想买辆大众的车，主要是觉得大众的口碑不错。我们先去了大众的肆店，看了最新nip的帕萨特，外观确实很大气，内饰也很有质感。销售顾问推荐了朗逸，说这款车销量一直很好，性价比很高。后来我们又去了宝妈的肆店看了看，宝妈的三系看起来不错，不过价格也确实不便宜。';
+
+        let currentTime = 0;
+        let duration = 32;
+        let isPlaying = false;
+        let playbackSpeed = 1;
+        let playbackTimer = null;
+
+        let history = [];
+        let currentHistoryIndex = -1;
+        let originalSegments = [];
+        let modificationCount = 0;
+
+        function init() {
+            parseOriginalText();
+            renderEditor();
+            drawWaveform();
+            loadFromStorage();
+            setupEventListeners();
+            updateUndoButton();
+        }
+
+        function parseOriginalText() {
+            originalSegments = [];
+            for (let i = 0; i < originalText.length; i++) {
+                originalSegments.push({
+                    text: originalText[i],
+                    modified: undefined,
+                    originalIndex: i
+                });
+            }
+        }
+
+        function renderEditor() {
+            const editor = document.getElementById('editor');
+            let html = '';
+
+            originalSegments.forEach((seg, index) => {
+                if (seg.modified !== undefined) {
+                    const escapedText = escapeHtml(seg.modified);
+                    const escapedOrig = escapeHtml(seg.text);
+                    html += `<span class="modified-mark" data-index="${index}" data-original="${escapedOrig}" onclick="showOriginal(this)">${escapedText}</span>`;
+                } else {
+                    html += escapeHtml(seg.text);
+                }
+            });
+
+            editor.innerHTML = html;
+            updateEditCount();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showOriginal(element) {
+            const tooltip = document.getElementById('tooltip');
+            const original = element.getAttribute('data-original');
+
+            tooltip.textContent = original;
+            tooltip.classList.add('active');
+
+            const rect = element.getBoundingClientRect();
+            tooltip.style.left = rect.left + 'px';
+            tooltip.style.top = (rect.bottom + 8) + 'px';
+
+            setTimeout(() => {
+                tooltip.classList.remove('active');
+            }, 3000);
+        }
+
+        function setupEventListeners() {
+            const editor = document.getElementById('editor');
+
+            editor.addEventListener('input', handleInput);
+            editor.addEventListener('keydown', handleKeydown);
+            editor.addEventListener('paste', handlePaste);
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('modified-mark')) {
+                    document.getElementById('tooltip').classList.remove('active');
+                }
+            });
+        }
+
+        function handleInput(e) {
+            const editor = document.getElementById('editor');
+            const newText = editor.innerText;
+
+            saveHistory();
+
+            syncSegmentsWithText(newText);
+
+            renderEditor();
+
+            const cursorPos = getCursorPosition(editor);
+            setCursorPosition(editor, cursorPos);
+
+            updateEditCount();
+        }
+
+        function handleKeydown(e) {
+            if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault();
+                undo();
+            }
+        }
+
+        function handlePaste(e) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            document.execCommand('insertText', false, text);
+        }
+
+        function syncSegmentsWithText(newText) {
+            const oldSegments = [...originalSegments];
+            originalSegments = [];
+
+            let oldIdx = 0;
+            let newIdx = 0;
+
+            while (newIdx < newText.length) {
+                if (oldIdx >= oldSegments.length) {
+                    originalSegments.push({
+                        text: newText[newIdx],
+                        modified: newText[newIdx],
+                        originalIndex: oldIdx,
+                        isNew: true
+                    });
+                    newIdx++;
+                    continue;
+                }
+
+                const oldSeg = oldSegments[oldIdx];
+
+                if (oldSeg.modified !== undefined) {
+                    if (newText[newIdx] === oldSeg.modified) {
+                        originalSegments.push({...oldSeg});
+                        oldIdx++;
+                        newIdx++;
+                    } else {
+                        originalSegments.push({
+                            text: oldSeg.text,
+                            modified: newText[newIdx],
+                            originalIndex: oldSeg.originalIndex,
+                            isNew: false
+                        });
+                        oldIdx++;
+                        newIdx++;
+                    }
+                } else {
+                    if (newText[newIdx] === oldSeg.text) {
+                        originalSegments.push({...oldSeg});
+                        oldIdx++;
+                        newIdx++;
+                    } else {
+                        originalSegments.push({
+                            text: oldSeg.text,
+                            modified: newText[newIdx],
+                            originalIndex: oldSeg.originalIndex,
+                            isNew: false
+                        });
+                        oldIdx++;
+                        newIdx++;
+                    }
+                }
+            }
+
+            while (oldIdx < oldSegments.length) {
+                const oldSeg = oldSegments[oldIdx];
+                if (oldSeg.modified !== undefined) {
+                    originalSegments.push({...oldSeg});
+                }
+                oldIdx++;
+            }
+        }
+
+        function getCursorPosition(editor) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return 0;
+
+            const range = selection.getRangeAt(0);
+            const preRange = range.cloneRange();
+            preRange.selectNodeContents(editor);
+            preRange.setEnd(range.endContainer, range.endOffset);
+            return preRange.toString().length;
+        }
+
+        function setCursorPosition(editor, position) {
+            const range = document.createRange();
+            const selection = window.getSelection();
+
+            let charCount = 0;
+            let found = false;
+
+            function traverse(node) {
+                if (found) return;
+
+                if (node.nodeType === Node.TEXT_NODE) {
+                    const nextCount = charCount + node.length;
+                    if (position <= nextCount) {
+                        range.setStart(node, position - charCount);
+                        range.collapse(true);
+                        found = true;
+                    }
+                    charCount = nextCount;
+                } else {
+                    for (let child of node.childNodes) {
+                        traverse(child);
+                        if (found) return;
+                    }
+                }
+            }
+
+            traverse(editor);
+
+            if (!found) {
+                range.selectNodeContents(editor);
+                range.collapse(false);
+            }
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        function saveHistory() {
+            const currentState = JSON.stringify(originalSegments);
+
+            if (currentHistoryIndex < history.length - 1) {
+                history = history.slice(0, currentHistoryIndex + 1);
+            }
+
+            history.push(currentState);
+            currentHistoryIndex = history.length - 1;
+
+            if (history.length > 50) {
+                history.shift();
+                currentHistoryIndex--;
+            }
+
+            updateUndoButton();
+        }
+
+        function undo() {
+            if (currentHistoryIndex <= 0) return;
+
+            currentHistoryIndex--;
+            const state = JSON.parse(history[currentHistoryIndex]);
+            originalSegments = state;
+
+            renderEditor();
+            updateEditCount();
+            updateUndoButton();
+
+            showToast('已撤回', 'info');
+        }
+
+        function updateUndoButton() {
+            const undoBtn = document.getElementById('undoBtn');
+            undoBtn.disabled = currentHistoryIndex <= 0;
+        }
+
+        function updateEditCount() {
+            let count = 0;
+            originalSegments.forEach(seg => {
+                if (seg.modified !== undefined) {
+                    count++;
+                }
+            });
+            modificationCount = count;
+
+            const badge = document.getElementById('editCountBadge');
+            if (count > 0) {
+                badge.style.display = 'inline';
+                badge.textContent = `${count}处修改`;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function drawWaveform() {
+            const canvas = document.getElementById('waveformCanvas');
+            const ctx = canvas.getContext('2d');
+            const container = document.getElementById('waveformContainer');
+
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 4) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+
+            const bars = 120;
+            const barWidth = canvas.width / bars;
+            ctx.fillStyle = '#4facfe';
+
+            for (let i = 0; i < bars; i++) {
+                const x = i * barWidth;
+                const height = Math.random() * 40 + 20;
+                const y = (canvas.height - height) / 2;
+                ctx.fillRect(x + 1, y, barWidth - 2, height);
+            }
+        }
+
+        function togglePlay() {
+            const btn = document.getElementById('playBtn');
+
+            if (isPlaying) {
+                clearInterval(playbackTimer);
+                btn.innerHTML = '▶️';
+                isPlaying = false;
+            } else {
+                startPlayback();
+                btn.innerHTML = '⏸️';
+                isPlaying = true;
+            }
+        }
+
+        function startPlayback() {
+            playbackTimer = setInterval(() => {
+                currentTime += 0.1 * playbackSpeed;
+                if (currentTime >= duration) {
+                    currentTime = 0;
+                    clearInterval(playbackTimer);
+                    isPlaying = false;
+                    document.getElementById('playBtn').innerHTML = '▶️';
+                }
+                updateTimeDisplay();
+                updateWaveformProgress();
+            }, 100);
+        }
+
+        function skipBackward() {
+            currentTime = Math.max(0, currentTime - 5);
+            updateTimeDisplay();
+            updateWaveformProgress();
+        }
+
+        function skipForward() {
+            currentTime = Math.min(duration, currentTime + 5);
+            updateTimeDisplay();
+            updateWaveformProgress();
+        }
+
+        function changeSpeed() {
+            playbackSpeed = parseFloat(document.getElementById('speedSelect').value);
+        }
+
+        function updateTimeDisplay() {
+            const current = formatTime(currentTime);
+            const total = formatTime(duration);
+            document.getElementById('timeDisplay').textContent = `${current} / ${total}`;
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateWaveformProgress() {
+            const progress = (currentTime / duration) * 100;
+            document.getElementById('waveformProgress').style.width = `${progress}%`;
+            document.getElementById('waveformCursor').style.left = `${progress}%`;
+        }
+
+        function saveDraft() {
+            const currentText = getCurrentText();
+            localStorage.setItem('audioAnnotationDraft', JSON.stringify({
+                text: currentText,
+                segments: originalSegments,
+                history: history,
+                historyIndex: currentHistoryIndex,
+                timestamp: new Date().toISOString()
+            }));
+            showToast('草稿已保存', 'success');
+        }
+
+        function submitChanges() {
+            const currentText = getCurrentText();
+
+            if (currentText === originalText) {
+                showToast('未检测到任何修改，请先修正ASR文本', 'warning');
+                return;
+            }
+
+            if (modificationCount === 0) {
+                showToast('请确认修改内容', 'warning');
+                return;
+            }
+
+            const confirmed = confirm(`检测到 ${modificationCount} 处修改，确定要提交吗？\n\n提交后任务状态将变为"ASR修改完成"，并进入一审队列。`);
+
+            if (confirmed) {
+                localStorage.setItem('audioAnnotationSubmitted', 'true');
+                localStorage.setItem('audioAnnotationResult', JSON.stringify({
+                    original: originalText,
+                    modified: currentText,
+                    modificationCount: modificationCount,
+                    submitTime: new Date().toISOString()
+                }));
+                localStorage.removeItem('audioAnnotationDraft');
+
+                document.getElementById('taskStatus').textContent = 'ASR修改完成';
+                document.getElementById('taskStatus').style.background = '#c8e6c9';
+                document.getElementById('taskStatus').style.color = '#2e7d32';
+
+                showToast('提交成功！已进入一审队列。', 'success');
+            }
+        }
+
+        function getCurrentText() {
+            return originalSegments.map(seg => seg.modified !== undefined ? seg.modified : seg.text).join('');
+        }
+
+        function loadFromStorage() {
+            const draft = localStorage.getItem('audioAnnotationDraft');
+            const submitted = localStorage.getItem('audioAnnotationSubmitted');
+
+            if (submitted) {
+                document.getElementById('taskStatus').textContent = 'ASR修改完成';
+                document.getElementById('taskStatus').style.background = '#c8e6c9';
+                document.getElementById('taskStatus').style.color = '#2e7d32';
+            }
+
+            if (draft) {
+                const draftData = JSON.parse(draft);
+                originalSegments = draftData.segments;
+                history = draftData.history || [];
+                currentHistoryIndex = draftData.historyIndex ?? -1;
+                renderEditor();
+                updateUndoButton();
+            } else {
+                saveHistory();
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast active ${type}`;
+
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 3000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
